@@ -1,4 +1,7 @@
 mod router;
+#[cfg(test)]
+mod test;
+
 use std::{io::Error, sync::Arc};
 
 use futures::AsyncRead;
