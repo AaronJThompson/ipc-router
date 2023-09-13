@@ -1,0 +1,16 @@
+[package]
+name = "ipc-router"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.73"
+futures = "0.3.28"
+interprocess = { version="1.2.1", features = ["tokio_support", "nonblocking"] }
+num_cpus = "1.15.0"
+tokio = { version = "1.28.2", features = ["sync", "full"] }
