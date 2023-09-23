@@ -1,9 +1,11 @@
 #[cfg(test)]
 mod tests {
     use std::io::ErrorKind;
+    use std::time::Duration;
     use std::{sync::Arc, io::Error};
 
-    use futures::AsyncReadExt;
+    use futures::{AsyncReadExt, AsyncWriteExt};
+    use futures::io::BufWriter;
     use interprocess::local_socket::tokio::{LocalSocketListener, LocalSocketStream};
     use interprocess::local_socket::NameTypeSupport;
 
@@ -33,12 +35,15 @@ mod tests {
 		};
         let router = Arc::new(MainRouter{});
         loop {
+            tokio::spawn(async move  {
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                write_string("Hello, world!".to_string()).await;
+            });
             match listener.accept().await {
                 Ok(mut stream) => {
                     let local_router = router.clone();
                     tokio::spawn(async move {
                         loop {
-                            //TODO: Handle route error gracefully
                             async fn loop_impl(router: &MainRouter, stream: &mut LocalSocketStream) -> Result<(), Error> {
                                 let mut single_buffer: [u8; 1] = [0; 1];
                                 let res = stream.read_exact(&mut single_buffer).await;
@@ -59,8 +64,9 @@ mod tests {
                             }
 
                             match loop_impl(local_router.as_ref(), &mut stream).await {
+                                //TODO: Handle route error gracefully
                                 Err(_) => break,
-                                _ => (),
+                                _ => {},
                             }
                             
                         }
@@ -72,6 +78,22 @@ mod tests {
     }
 
     async fn test_handler(stream: &mut LocalSocketStream) -> Result<(), Error> {
+        let mut read_buf = String::new();
+        let bytes = stream.read_to_string(&mut read_buf).await?;
+        println!("Bytes: {}, Output: {}", bytes, read_buf);
+        Ok(())
+    }
+
+    async fn write_string(str: String) -> Result<(), Error> {
+        let stream: LocalSocketStream = match LocalSocketStream::connect(get_pipe_name()).await {
+			Ok(stream) => stream,
+			Err(e) => {
+				panic!("{:?}", e);
+			}
+		};
+        let mut writer = BufWriter::new(stream);
+        let to_write = [[0 as u8].as_mut(), str.as_bytes()].concat();
+        writer.write_all(to_write.as_slice()).await?;
         Ok(())
     }
 }
